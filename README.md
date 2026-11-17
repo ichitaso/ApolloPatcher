@@ -62,6 +62,18 @@ sign out of all accounts in Apollo before installing
   Added ability to upload and delete images to Imgur
   Multiple images (album creation) fails at first but works the next time.
 
+## Backup & Restore
+
+Back up and restore Apollo's data from the ApolloPatcher settings.
+
+- **Backup**: Saves accounts, settings, filters, themes, saved items and keychain to a `.tar` file (Files app, AirDrop, etc.).
+- **Restore**: Select a backup file. Apollo closes and restores it on the next launch.
+
+Useful when reinstalling Apollo or moving between jailbreak, TrollStore and sideloading.
+
+> [!CAUTION]
+> The backup file contains your login tokens unencrypted. Keep it safe and do not share it.
+
 ## For sideloading
 
 the IPA is available on the GitHub release page.
