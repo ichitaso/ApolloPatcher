@@ -1,6 +1,6 @@
 Package: com.ichitaso.apollopatcher
 Name: ApolloPatcher
-Version: 0.1.0
+Version: 0.1.1
 Description: Apollo for Reddit tweak with in-app configurable API keys
 Section: Tweaks
 Depends: mobilesubstrate

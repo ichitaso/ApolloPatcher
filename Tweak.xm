@@ -1,7 +1,6 @@
 #import "header.h"
 #import "fishhook.h"
 #import "Backup.h"
-#import <AuthenticationServices/AuthenticationServices.h>
 
 static NSString *randomUserAgent = [NSString stringWithFormat:@"iOS: com.%@.%@ v%d.%d.%d (by /u/%@)", RANDSTRING, RANDSTRING, RANDINT, RANDINT, RANDINT, RANDSTRING];
 
@@ -36,9 +35,12 @@ static NSString *effectiveUserAgent(void) {
 }
 %end
 
+@interface ASWebAuthenticationSession : NSObject
+@end
+
 %hook ASWebAuthenticationSession
 // The session catches the custom scheme itself, so it doesn't need to be in CFBundleURLTypes
-- (instancetype)initWithURL:(NSURL *)URL callbackURLScheme:(NSString *)callbackURLScheme completionHandler:(ASWebAuthenticationSessionCompletionHandler)completionHandler {
+- (instancetype)initWithURL:(NSURL *)URL callbackURLScheme:(NSString *)callbackURLScheme completionHandler:(void (^)(NSURL *, NSError *))completionHandler {
     NSURL *redirect = kRedirectURI.length ? [NSURL URLWithString:kRedirectURI] : nil;
     NSURLComponents *components = [NSURLComponents componentsWithURL:URL resolvingAgainstBaseURL:NO];
     if (!redirect.scheme.length || ![components.host hasSuffix:@"reddit.com"] || ![components.path containsString:@"authorize"]) {
