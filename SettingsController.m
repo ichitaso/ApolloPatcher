@@ -22,6 +22,9 @@ UITextField *editField;
     if (self) {
         self.detailTextLabel.text = specifier.properties[@"subtitle"] ?: nil;
         //self.detailTextLabel.textColor = [UIColor grayColor];
+        if (specifier->cellType == PSLinkCell) {
+            self.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
+        }
     }
 
     return self;
@@ -36,7 +39,15 @@ UITextField *editField;
         config.secondaryText = specifier.properties[@"subtitle"];
         config.secondaryTextProperties.color = [UIColor colorWithWhite:142.f / 255.f alpha:1.f];
         config.image = specifier.properties[@"iconImage"];
+        NSDirectionalEdgeInsets margins = config.directionalLayoutMargins;
+        margins.top = 10;
+        margins.bottom = 10;
+        config.directionalLayoutMargins = margins;
+        config.textToSecondaryTextVerticalPadding = 2;
         self.contentConfiguration = config;
+    }
+    if (specifier->cellType == PSLinkCell) {
+        self.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
     }
 }
 @end
@@ -107,8 +118,8 @@ UITextField *editField;
         spec->action = @selector(howtoUse);
         [spec setProperty:[self decodeAndResizeBase64Image:b64Willfeeltips] forKey:@"iconImage"];
         [spec setProperty:@1 forKey:@"alignment"];
-        [spec setProperty:NSClassFromString(@"PSSubtitleDisclosureTableCell") forKey:@"cellClass"];
-        [spec setProperty:@"ApolloPatcher | ichitaso's Repository" forKey:@"cellSubtitleText"];
+        [spec setProperty:NSClassFromString(@"CustomButtonCell") forKey:@"cellClass"];
+        [spec setProperty:@"ApolloPatcher | ichitaso's Repository" forKey:@"subtitle"];
         [specifiers addObject:spec];
 
         spec = [PSSpecifier preferenceSpecifierNamed:@"Custom API"
@@ -247,7 +258,7 @@ UITextField *editField;
         [spec setProperty:@"@ichitaso" forKey:@"subtitle"];
         [specifiers addObject:spec];
 
-        spec = [PSSpecifier preferenceSpecifierNamed:@"Souce Code"
+        spec = [PSSpecifier preferenceSpecifierNamed:@"Source Code"
                                               target:self
                                                  set:nil
                                                  get:nil
@@ -257,8 +268,8 @@ UITextField *editField;
         spec->action = @selector(openGitHub);
         [spec setProperty:[self decodeAndResizeBase64Image:b64GitHub] forKey:@"iconImage"];
         [spec setProperty:@1 forKey:@"alignment"];
-        [spec setProperty:NSClassFromString(@"PSSubtitleDisclosureTableCell") forKey:@"cellClass"];
-        [spec setProperty:@"Open source on GitHub" forKey:@"cellSubtitleText"];
+        [spec setProperty:NSClassFromString(@"CustomButtonCell") forKey:@"cellClass"];
+        [spec setProperty:@"Open source on GitHub" forKey:@"subtitle"];
         [specifiers addObject:spec];
 
         spec = [PSSpecifier preferenceSpecifierNamed:@"Donate"
@@ -271,8 +282,8 @@ UITextField *editField;
         spec->action = @selector(donate);
         [spec setProperty:[self decodeAndResizeBase64Image:b64Paypal] forKey:@"iconImage"];
         [spec setProperty:@1 forKey:@"alignment"];
-        [spec setProperty:NSClassFromString(@"PSSubtitleDisclosureTableCell") forKey:@"cellClass"];
-        [spec setProperty:@"If you like my work, Please a donation." forKey:@"cellSubtitleText"];
+        [spec setProperty:NSClassFromString(@"CustomButtonCell") forKey:@"cellClass"];
+        [spec setProperty:@"If you like my work, Please a donation." forKey:@"subtitle"];
         [specifiers addObject:spec];
 
         _specifiers = [specifiers copy];

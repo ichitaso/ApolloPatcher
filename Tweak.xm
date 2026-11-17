@@ -641,6 +641,9 @@ static void presentWebAuth(UIViewController *presenter, APWebAuthViewController 
 %end
 %end // LegacyWebAuth end
 
+@interface TestFlightSettingsFooterView : UIView
+@end
+
 // Add Settings button
 static NSInteger sectionCount;
 %group SettingsViewController
@@ -684,6 +687,14 @@ static NSInteger sectionCount;
 - (void)settingsButtonPushed {
     UINavigationController *settingsVC = [[UINavigationController alloc] initWithRootViewController:[[SettingsController alloc] init]];
     [self presentViewController:settingsVC animated:YES completion:nil];
+}
+%end
+
+// Shown for sideloaded installs because their receipt looks like TestFlight's
+%hook TestFlightSettingsFooterView
+- (void)didMoveToWindow {
+    %orig;
+    [self setHidden:YES];
 }
 %end
 %end // SettingsViewController end
@@ -751,7 +762,7 @@ static OSStatus SecItemUpdate_replacement(CFDictionaryRef query, CFDictionaryRef
             %init(LegacyWebAuth);
         }
 
-        %init(SettingsViewController, ApolloSettingsViewController = objc_getClass("Apollo.SettingsViewController"));
+        %init(SettingsViewController, ApolloSettingsViewController = objc_getClass("Apollo.SettingsViewController"), TestFlightSettingsFooterView = objc_getClass("Apollo.TestFlightSettingsFooterView"));
         // Add support for share links (e.g. reddit.com/r/subreddit/s/xxxxxx) in Apollo.
         cache = [NSCache new];
         NSError *error = NULL;

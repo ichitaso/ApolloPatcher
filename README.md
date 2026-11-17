@@ -18,6 +18,8 @@ Download the IPA from the [Releases](https://github.com/ichitaso/ApolloPatcher/r
 | `Apollo-1.15.11_ApolloPatcher_x.x.x.ipa` | iOS 15 or later |
 | `Apollo-1.8.7_ApolloPatcher_x.x.x.ipa` | iOS 13 / 14 |
 
+`Apollo-1.15.11_ApolloPatcher_x.x.x_full.ipa` keeps the app extensions (widgets, Safari extension, etc.). Use it only with a paid developer certificate, since extensions need extra App IDs and make sideloading tools warn.
+
 Install it with whichever works on your device:
 
 | Your device | How to install |
