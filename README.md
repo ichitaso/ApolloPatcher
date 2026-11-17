@@ -8,12 +8,29 @@ Apollo for Reddit tweak with in-app configurable API keys
 ## Notes
 - **There is a known issue with crashes when trying to use Apollo Pro or Ultra features.**
 - **Apollo version 1.15.11 or lower is required.**
-  
-If you are jailbroken, please downgrade via AppStore++.
 
-TrollStore IPA: [AppStore++_TrollStore_v1.0.3-2.ipa](https://github.com/CokePokes/AppStorePlus-TrollStore/releases/download/v1.2-1/AppStore++_TrollStore_v1.0.3-2.ipa)
+## Installation
 
-Repo: https://cokepokes.github.io
+Download the IPA from the [Releases](https://github.com/ichitaso/ApolloPatcher/releases) page. ApolloPatcher is already included.
+
+| IPA | iOS |
+|---|---|
+| `Apollo-1.15.11_ApolloPatcher_x.x.x.ipa` | iOS 15 or later |
+| `Apollo-1.8.7_ApolloPatcher_x.x.x.ipa` | iOS 13 / 14 |
+
+Install it with whichever works on your device:
+
+| Your device | How to install |
+|---|---|
+| TrollStore supported (iOS 14.0–16.6.1, 16.7 RC, 17.0) | TrollStore |
+| Jailbroken (any version) | TrollStore Lite or AppSync Unified |
+| Others | Sideloading (AltStore, Sideloadly, etc.) |
+
+### Jailbreak (deb)
+
+If Apollo 1.15.11 or lower is already installed, you can install ApolloPatcher from the repo instead: https://cydia.ichitaso.com
+
+App Store downgrade tools (AppStore++, MuffinStore, etc.) may no longer work, so use the IPA if you can't downgrade. Don't install the deb together with the IPA.
 
 > [!WARNING]
 > Per the recent [Responsible Builder Policy](https://www.reddit.com/r/redditdev/comments/1oug31u/introducing_the_responsible_builder_policy_new/), you can no longer generated new API keys that use Oauth without Reddit's explicit approval. If you have an existing key, you should still be able to use this. If you do not have one, see [No API key? Use Dystopia](#no-api-key-use-dystopia).
@@ -103,14 +120,9 @@ Useful when reinstalling Apollo or moving between jailbreak, TrollStore and side
 > [!CAUTION]
 > The backup file contains your login tokens unencrypted. Keep it safe and do not share it.
 
-## For sideloading
+## Building the IPA
 
-the IPA is available on the GitHub release page.
-
-"ApolloPatcher.dylib" are already included, so all you need to do is install them from AltStore or other sources.  
-
-If you make your own, use decrypted IPA and deb files  
-(Do not use the IPA file from the release page)
+Put the decrypted `Apollo-1.15.11.ipa` / `Apollo-1.8.7.ipa` in `jailed/` and run `jailed/build.sh`. The IPAs are written to `jailed/out/`.
 
 ## Packages Repo
 https://cydia.ichitaso.com

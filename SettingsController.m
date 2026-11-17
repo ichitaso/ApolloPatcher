@@ -26,6 +26,19 @@ UITextField *editField;
 
     return self;
 }
+// iOS 26+: textLabel/detailTextLabel layout drifts
+- (void)refreshCellContentsWithSpecifier:(PSSpecifier *)specifier {
+    [super refreshCellContentsWithSpecifier:specifier];
+    if (@available(iOS 14.0, *)) {
+        UIListContentConfiguration *config = [UIListContentConfiguration subtitleCellConfiguration];
+        config.text = specifier.name;
+        config.textProperties.color = [UIColor labelColor];
+        config.secondaryText = specifier.properties[@"subtitle"];
+        config.secondaryTextProperties.color = [UIColor colorWithWhite:142.f / 255.f alpha:1.f];
+        config.image = specifier.properties[@"iconImage"];
+        self.contentConfiguration = config;
+    }
+}
 @end
 
 @interface redButtonCell : PSTableCell

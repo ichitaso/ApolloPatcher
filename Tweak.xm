@@ -715,6 +715,10 @@ static OSStatus SecItemUpdate_replacement(CFDictionaryRef query, CFDictionaryRef
 
 %ctor {
     @autoreleasepool {
+        // Both the deb and the dylib embedded in the IPA may be loaded
+        if (getenv("APOLLOPATCHER_LOADED")) return;
+        setenv("APOLLOPATCHER_LOADED", "1", 1);
+
         // Before the app opens its data
         NSString *restoreResult = APApplyPendingRestore();
         if (restoreResult) {
