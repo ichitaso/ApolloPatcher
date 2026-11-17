@@ -16,7 +16,7 @@ TrollStore IPA: [AppStore++_TrollStore_v1.0.3-2.ipa](https://github.com/CokePoke
 Repo: https://cokepokes.github.io
 
 > [!WARNING]
-> Per the recent [Responsible Builder Policy](https://www.reddit.com/r/redditdev/comments/1oug31u/introducing_the_responsible_builder_policy_new/), you can no longer generated new API keys that use Oauth without Reddit's explicit approval. If you have an existing key, you should still be able to use this. If you do not and/or are setting this up for the first time, you are out of luck.
+> Per the recent [Responsible Builder Policy](https://www.reddit.com/r/redditdev/comments/1oug31u/introducing_the_responsible_builder_policy_new/), you can no longer generated new API keys that use Oauth without Reddit's explicit approval. If you have an existing key, you should still be able to use this. If you do not have one, see [No API key? Use Dystopia](#no-api-key-use-dystopia).
 
 ## Reddit Settings
 
@@ -38,6 +38,35 @@ sign out of all accounts in Apollo before installing
 7. Enter it in the "Reddit API Key" in the settings.
 
 8. It currently works without Imgur settings.
+
+## No API key? Use Dystopia
+
+If you can't create your own Reddit API key, you can use the App ID of [Dystopia for Reddit](https://apps.apple.com/us/app/dystopia-for-reddit/id1430599061) instead.
+
+### 1. Get the App ID from Dystopia
+
+1. Install **Dystopia** from the App Store (any iPhone/iPad is fine).
+2. Open Dystopia, sign in with your Reddit account and tap **Allow**.
+3. Reddit sends you an email titled **"You've authorized a new app in your Reddit account"**.
+4. Copy the text after **"App ID"** in that email.
+
+### 2. Set up ApolloPatcher
+
+1. Open the ApolloPatcher settings in Apollo.
+2. Paste the App ID into **Reddit API Key**.
+3. Turn on **Use Dystopia**.
+4. Tap **Apply** (Apollo closes).
+
+### 3. Sign in to Apollo
+
+1. Open Apollo again and add your Reddit account.
+2. Reddit asks you to connect your account to **Dystopia**. Tap **Allow**.
+3. Done!
+
+> [!NOTE]
+> Turn **Use Dystopia** off again if you switch back to your own API key.
+
+Credits: [Apollo-Reborn](https://github.com/Apollo-Reborn/Apollo-Reborn) and [patcheddit](https://github.com/wchill/patcheddit) for the original workaround.
 
 ## Imgur Settings
 **The Imgur client ID is tentatively created by me, but may stop if there are too many requests.**

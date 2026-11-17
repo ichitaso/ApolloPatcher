@@ -105,7 +105,7 @@ UITextField *editField;
                                               detail:nil
                                                 cell:PSGroupCell
                                                 edit:nil];
-        [spec setProperty:@"Get the Client IDs of Reddit and Imgur and enter them separately." forKey:@"footerText"];
+        [spec setProperty:@"Get the Client IDs of Reddit and Imgur and enter them separately. Turn on Use Dystopia when the Reddit API Key is Dystopia's App ID." forKey:@"footerText"];
         [specifiers addObject:spec];
 
         PSTextFieldSpecifier *textspec;
@@ -131,6 +131,17 @@ UITextField *editField;
         [textspec setProperty:@"IMGUR_ID" forKey:@"key"];
         [textspec setPlaceholder:@"Imgur API Key"];
         [specifiers addObject:textspec];
+
+        spec = [PSSpecifier preferenceSpecifierNamed:@"Use Dystopia"
+                                              target:self
+                                                 set:@selector(setPreferenceValue:specifier:)
+                                                 get:@selector(readPreferenceValue:)
+                                              detail:nil
+                                                cell:PSSwitchCell
+                                                edit:nil];
+        [spec setProperty:@"Use_Dystopia" forKey:@"key"];
+        [spec setProperty:@NO forKey:@"default"];
+        [specifiers addObject:spec];
 
         spec = [PSSpecifier emptyGroupSpecifier];
         [spec setProperty:@"After setting, tap Apply and close the application to activate it." forKey:@"footerText"];
@@ -282,6 +293,7 @@ UITextField *editField;
 - (void)tapReset {
     [[NSUserDefaults standardUserDefaults] removeObjectForKey:@"Custom_ID"];
     [[NSUserDefaults standardUserDefaults] removeObjectForKey:@"IMGUR_ID"];
+    [[NSUserDefaults standardUserDefaults] removeObjectForKey:@"Use_Dystopia"];
     [[UIApplication sharedApplication] closeAppAnimatedExit];
 }
 

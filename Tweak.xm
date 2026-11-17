@@ -1,8 +1,14 @@
 #import "header.h"
 #import "fishhook.h"
 #import "Backup.h"
+#import <AuthenticationServices/AuthenticationServices.h>
 
 static NSString *randomUserAgent = [NSString stringWithFormat:@"iOS: com.%@.%@ v%d.%d.%d (by /u/%@)", RANDSTRING, RANDSTRING, RANDINT, RANDINT, RANDINT, RANDSTRING];
+
+static NSString *effectiveUserAgent(void) {
+    return kUserAgent.length ? kUserAgent : randomUserAgent;
+}
+
 // Memo iPad6 17.5.1
 // Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15
 %group CustomID
@@ -14,12 +20,41 @@ static NSString *randomUserAgent = [NSString stringWithFormat:@"iOS: com.%@.%@ v
     }
     return %orig;
 }
+// Sent with the token request, must match the authorize request
+- (NSURL *)redirectURI {
+    if (kRedirectURI.length) {
+        return [NSURL URLWithString:kRedirectURI];
+    }
+    return %orig;
+}
 %end
 
 %hook RDKClient
 // Randomize User-Agent
 - (id)userAgent {
-    return randomUserAgent;
+    return effectiveUserAgent();
+}
+%end
+
+%hook ASWebAuthenticationSession
+// The session catches the custom scheme itself, so it doesn't need to be in CFBundleURLTypes
+- (instancetype)initWithURL:(NSURL *)URL callbackURLScheme:(NSString *)callbackURLScheme completionHandler:(ASWebAuthenticationSessionCompletionHandler)completionHandler {
+    NSURL *redirect = kRedirectURI.length ? [NSURL URLWithString:kRedirectURI] : nil;
+    NSURLComponents *components = [NSURLComponents componentsWithURL:URL resolvingAgainstBaseURL:NO];
+    if (!redirect.scheme.length || ![components.host hasSuffix:@"reddit.com"] || ![components.path containsString:@"authorize"]) {
+        return %orig;
+    }
+
+    NSMutableArray *items = [NSMutableArray array];
+    for (NSURLQueryItem *item in components.queryItems) {
+        if ([item.name isEqualToString:@"redirect_uri"]) {
+            [items addObject:[NSURLQueryItem queryItemWithName:@"redirect_uri" value:kRedirectURI]];
+        } else {
+            [items addObject:item];
+        }
+    }
+    components.queryItems = items;
+    return %orig(components.URL ?: URL, redirect.scheme, completionHandler);
 }
 %end
 
@@ -205,7 +240,7 @@ static NSString *imageID;
     } else if ([requestURL containsString:@"https://oauth.reddit.com/"] || [requestURL containsString:@"https://www.reddit.com/"]) {
         // reddit has blocked this user agent so will change it to a randomized one
         // iOS: com.christianselig.Apollo v1.15.11 (by /u/iamthatis)
-        [mutableRequest setValue:randomUserAgent forHTTPHeaderField:@"User-Agent"];
+        [mutableRequest setValue:effectiveUserAgent() forHTTPHeaderField:@"User-Agent"];
         [self setValue:mutableRequest forKey:@"_originalRequest"];
         [self setValue:mutableRequest forKey:@"_currentRequest"];
     }
@@ -610,6 +645,10 @@ static OSStatus SecItemUpdate_replacement(CFDictionaryRef query, CFDictionaryRef
         }
 
         kCustomID = (id)[[[NSUserDefaults standardUserDefaults] objectForKey:@"Custom_ID"] ?: nil copy];
+        if ([[NSUserDefaults standardUserDefaults] boolForKey:@"Use_Dystopia"]) {
+            kRedirectURI = @"dystopia://response";
+            kUserAgent = @"ios:com.CarbonDev.Dystopia:v1.0.1(by /u/DystopiaForReddit)";
+        }
         kClientID = (id)[[[NSUserDefaults standardUserDefaults] objectForKey:@"IMGUR_ID"] ?: @"8b15a972041abb1" copy];
         // Suppress wallpaper prompt
         NSDate *dateIn90d = [NSDate dateWithTimeIntervalSinceNow:60*60*24*90];

@@ -11,6 +11,8 @@
 #define RANDINT (arc4random() % 9) + 1
 
 static NSString *kCustomID;
+static NSString *kRedirectURI;
+static NSString *kUserAgent;
 static NSString *kClientID;
 
 @interface ShareUrlTask : NSObject
