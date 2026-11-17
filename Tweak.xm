@@ -1,6 +1,13 @@
 #import "header.h"
 #import "fishhook.h"
 #import "Backup.h"
+#import "WebAuth.h"
+#import <version.h>
+
+// Logos emits a VLA for %property in ObjC++
+#if __has_warning("-Wvla-cxx-extension")
+#pragma clang diagnostic ignored "-Wvla-cxx-extension"
+#endif
 
 static NSString *randomUserAgent = [NSString stringWithFormat:@"iOS: com.%@.%@ v%d.%d.%d (by /u/%@)", RANDSTRING, RANDSTRING, RANDINT, RANDINT, RANDINT, RANDSTRING];
 
@@ -36,27 +43,43 @@ static NSString *effectiveUserAgent(void) {
 %end
 
 @interface ASWebAuthenticationSession : NSObject
+@property (nonatomic, strong) NSURL *ap_authURL;
+@property (nonatomic, copy) NSString *ap_callbackScheme;
+@property (nonatomic, copy) id ap_completion;
+- (BOOL)start;
+@end
+
+@interface SFSafariViewController (ApolloPatcher)
+@property (nonatomic, strong) NSURL *ap_authURL;
 @end
 
 %hook ASWebAuthenticationSession
+%property (nonatomic, strong) NSURL *ap_authURL;
+%property (nonatomic, copy) NSString *ap_callbackScheme;
+%property (nonatomic, copy) id ap_completion;
+
 // The session catches the custom scheme itself, so it doesn't need to be in CFBundleURLTypes
 - (instancetype)initWithURL:(NSURL *)URL callbackURLScheme:(NSString *)callbackURLScheme completionHandler:(void (^)(NSURL *, NSError *))completionHandler {
     NSURL *redirect = kRedirectURI.length ? [NSURL URLWithString:kRedirectURI] : nil;
-    NSURLComponents *components = [NSURLComponents componentsWithURL:URL resolvingAgainstBaseURL:NO];
-    if (!redirect.scheme.length || ![components.host hasSuffix:@"reddit.com"] || ![components.path containsString:@"authorize"]) {
-        return %orig;
-    }
-
-    NSMutableArray *items = [NSMutableArray array];
-    for (NSURLQueryItem *item in components.queryItems) {
-        if ([item.name isEqualToString:@"redirect_uri"]) {
-            [items addObject:[NSURLQueryItem queryItemWithName:@"redirect_uri" value:kRedirectURI]];
-        } else {
-            [items addObject:item];
+    if (redirect.scheme.length && APIsRedditAuthorizeURL(URL)) {
+        NSURLComponents *components = [NSURLComponents componentsWithURL:URL resolvingAgainstBaseURL:NO];
+        NSMutableArray *items = [NSMutableArray array];
+        for (NSURLQueryItem *item in components.queryItems) {
+            if ([item.name isEqualToString:@"redirect_uri"]) {
+                [items addObject:[NSURLQueryItem queryItemWithName:@"redirect_uri" value:kRedirectURI]];
+            } else {
+                [items addObject:item];
+            }
         }
+        components.queryItems = items;
+        URL = components.URL ?: URL;
+        callbackURLScheme = redirect.scheme;
     }
-    components.queryItems = items;
-    return %orig(components.URL ?: URL, redirect.scheme, completionHandler);
+    ASWebAuthenticationSession *session = %orig(URL, callbackURLScheme, completionHandler);
+    session.ap_authURL = URL;
+    session.ap_callbackScheme = callbackURLScheme;
+    session.ap_completion = completionHandler;
+    return session;
 }
 %end
 
@@ -555,6 +578,69 @@ static void TryResolveShareUrl(NSString *urlString, void (^successHandler)(NSStr
 %end
 %end // CustomID end
 
+static UIViewController *topViewController(void) {
+    UIViewController *vc = [UIApplication sharedApplication].keyWindow.rootViewController;
+    while (vc.presentedViewController) vc = vc.presentedViewController;
+    return vc;
+}
+
+static void presentWebAuth(UIViewController *presenter, APWebAuthViewController *auth) {
+    UINavigationController *nav = [[UINavigationController alloc] initWithRootViewController:auth];
+    [presenter presentViewController:nav animated:YES completion:nil];
+}
+
+// Reddit's login pages need Safari 16+, so sign in with a WKWebView on older iOS
+%group LegacyWebAuth
+%hook ASWebAuthenticationSession
+- (BOOL)start {
+    if (!APIsRedditAuthorizeURL(self.ap_authURL) || !self.ap_completion) {
+        return %orig;
+    }
+    void (^completion)(NSURL *, NSError *) = self.ap_completion;
+    presentWebAuth(topViewController(), [[APWebAuthViewController alloc] initWithURL:self.ap_authURL callbackScheme:self.ap_callbackScheme completion:^(NSURL *callbackURL) {
+        if (callbackURL) {
+            completion(callbackURL, nil);
+        } else {
+            // ASWebAuthenticationSessionErrorCodeCanceledLogin
+            completion(nil, [NSError errorWithDomain:@"com.apple.AuthenticationServices.WebAuthenticationSession" code:1 userInfo:nil]);
+        }
+    }]);
+    return YES;
+}
+%end
+
+%hook SFSafariViewController
+%property (nonatomic, strong) NSURL *ap_authURL;
+
+- (instancetype)initWithURL:(NSURL *)URL configuration:(id)configuration {
+    SFSafariViewController *safari = %orig;
+    safari.ap_authURL = URL;
+    return safari;
+}
+%end
+
+%hook UIViewController
+- (void)presentViewController:(UIViewController *)viewController animated:(BOOL)animated completion:(void (^)(void))completion {
+    if (![viewController isKindOfClass:%c(SFSafariViewController)]) {
+        return %orig;
+    }
+    SFSafariViewController *safari = (SFSafariViewController *)viewController;
+    if (!APIsRedditAuthorizeURL(safari.ap_authURL)) {
+        return %orig;
+    }
+    // Apollo 1.8.7 receives the callback through scene:openURLContexts:
+    presentWebAuth(self, [[APWebAuthViewController alloc] initWithURL:safari.ap_authURL callbackScheme:@"apollo" completion:^(NSURL *callbackURL) {
+        if (callbackURL) {
+            [[UIApplication sharedApplication] openURL:callbackURL options:@{} completionHandler:nil];
+        } else if ([safari.delegate respondsToSelector:@selector(safariViewControllerDidFinish:)]) {
+            [safari.delegate safariViewControllerDidFinish:safari];
+        }
+    }]);
+    if (completion) completion();
+}
+%end
+%end // LegacyWebAuth end
+
 // Add Settings button
 static NSInteger sectionCount;
 %group SettingsViewController
@@ -657,6 +743,9 @@ static OSStatus SecItemUpdate_replacement(CFDictionaryRef query, CFDictionaryRef
         [[NSUserDefaults standardUserDefaults] setObject:dateIn90d forKey:@"WallpaperPromptMostRecent2"];
 
         %init(CustomID);
+        if (IS_IOS_OR_NEWER(iOS_13_0) && !IS_IOS_OR_NEWER(iOS_16_0)) {
+            %init(LegacyWebAuth);
+        }
 
         %init(SettingsViewController, ApolloSettingsViewController = objc_getClass("Apollo.SettingsViewController"));
         // Add support for share links (e.g. reddit.com/r/subreddit/s/xxxxxx) in Apollo.
