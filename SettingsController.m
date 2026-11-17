@@ -1,5 +1,9 @@
 #import "header.h"
 #import "Image.h"
+#import "Backup.h"
+
+@interface SettingsController () <UIDocumentPickerDelegate>
+@end
 
 UITextField *editField;
 
@@ -161,6 +165,39 @@ UITextField *editField;
         [spec setProperty:NSClassFromString(@"redButtonCell") forKey:@"cellClass"];
         [specifiers addObject:spec];
 
+        spec = [PSSpecifier preferenceSpecifierNamed:@"Backup"
+                                              target:self
+                                                 set:nil
+                                                 get:nil
+                                              detail:nil
+                                                cell:PSGroupCell
+                                                edit:nil];
+        [spec setProperty:@"Back up your documents, settings and keychain (accounts). The backup file contains your login tokens unencrypted, so keep it safe." forKey:@"footerText"];
+        [specifiers addObject:spec];
+
+        spec = [PSSpecifier preferenceSpecifierNamed:@"Backup"
+                                              target:self
+                                                 set:nil
+                                                 get:nil
+                                              detail:nil
+                                                cell:PSButtonCell
+                                                edit:nil];
+        spec->action = @selector(tapBackup);
+        [spec setProperty:@2 forKey:@"alignment"];
+        [specifiers addObject:spec];
+
+        spec = [PSSpecifier preferenceSpecifierNamed:@"Restore"
+                                              target:self
+                                                 set:nil
+                                                 get:nil
+                                              detail:nil
+                                                cell:PSButtonCell
+                                                edit:nil];
+        spec->action = @selector(tapRestore);
+        [spec setProperty:@2 forKey:@"alignment"];
+        [spec setProperty:NSClassFromString(@"redButtonCell") forKey:@"cellClass"];
+        [specifiers addObject:spec];
+
         spec = [PSSpecifier preferenceSpecifierNamed:@"Credits"
                                               target:self
                                                  set:nil
@@ -246,6 +283,100 @@ UITextField *editField;
     [[NSUserDefaults standardUserDefaults] removeObjectForKey:@"Custom_ID"];
     [[NSUserDefaults standardUserDefaults] removeObjectForKey:@"IMGUR_ID"];
     [[UIApplication sharedApplication] closeAppAnimatedExit];
+}
+
+- (void)showMessage:(NSString *)title message:(NSString *)message {
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:title
+                                                                   message:message
+                                                            preferredStyle:UIAlertControllerStyleAlert];
+    [alert addAction:[UIAlertAction actionWithTitle:@"Close" style:UIAlertActionStyleDefault handler:nil]];
+    [self presentViewController:alert animated:YES completion:nil];
+}
+
+// Runs work off the main thread while a progress alert is shown
+- (void)runWithProgress:(NSString *)title work:(id (^)(NSString **error))work completion:(void (^)(id result, NSString *error))completion {
+    UIAlertController *progress = [UIAlertController alertControllerWithTitle:title
+                                                                      message:nil
+                                                               preferredStyle:UIAlertControllerStyleAlert];
+    [self presentViewController:progress animated:YES completion:^{
+        dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+            NSString *error = nil;
+            id result = work(&error);
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [progress dismissViewControllerAnimated:YES completion:^{
+                    completion(result, error);
+                }];
+            });
+        });
+    }];
+}
+
+- (void)tapBackup {
+    [self runWithProgress:@"Backing up..." work:^id(NSString **error) {
+        return APCreateBackup(error);
+    } completion:^(NSURL *url, NSString *error) {
+        if (!url) {
+            [self showMessage:@"Backup Failed" message:error];
+            return;
+        }
+        UIActivityViewController *activity = [[UIActivityViewController alloc] initWithActivityItems:@[url] applicationActivities:nil];
+        activity.completionWithItemsHandler = ^(UIActivityType activityType, BOOL completed, NSArray *returnedItems, NSError *activityError) {
+            [[NSFileManager defaultManager] removeItemAtURL:url error:nil];
+        };
+        if (IS_PAD) {
+            CGRect rect = self.view.bounds;
+            activity.popoverPresentationController.sourceView = self.view;
+            activity.popoverPresentationController.sourceRect = CGRectMake(CGRectGetMidX(rect), CGRectGetMidY(rect), 1, 1);
+            activity.popoverPresentationController.permittedArrowDirections = 0;
+        }
+        [self presentViewController:activity animated:YES completion:nil];
+    }];
+}
+
+- (void)tapRestore {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+    UIDocumentPickerViewController *picker = [[UIDocumentPickerViewController alloc] initWithDocumentTypes:@[@"public.tar-archive", @"public.data"]
+                                                                                                    inMode:UIDocumentPickerModeImport];
+#pragma clang diagnostic pop
+    picker.delegate = self;
+    [self presentViewController:picker animated:YES completion:nil];
+}
+
+- (void)documentPicker:(UIDocumentPickerViewController *)controller didPickDocumentsAtURLs:(NSArray<NSURL *> *)urls {
+    NSURL *url = urls.firstObject;
+    if (!url) return;
+
+    [self runWithProgress:@"Loading..." work:^id(NSString **error) {
+        NSDictionary *manifest = APPrepareRestore(url, error);
+        [[NSFileManager defaultManager] removeItemAtURL:url error:nil];
+        return manifest;
+    } completion:^(NSDictionary *manifest, NSString *error) {
+        if (!manifest) {
+            [self showMessage:@"Cannot Restore" message:error];
+            return;
+        }
+        NSString *date = @"";
+        if ([manifest[@"date"] isKindOfClass:[NSDate class]]) {
+            date = [NSDateFormatter localizedStringFromDate:manifest[@"date"] dateStyle:NSDateFormatterMediumStyle timeStyle:NSDateFormatterShortStyle];
+        }
+        NSString *message = [NSString stringWithFormat:@"%@ (Apollo %@)\n\nAll current data will be overwritten. The app will close and restore on the next launch.", date, manifest[@"appVersion"] ?: @""];
+        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Restore?"
+                                                                       message:message
+                                                                preferredStyle:UIAlertControllerStyleAlert];
+        [alert addAction:[UIAlertAction actionWithTitle:@"Restore" style:UIAlertActionStyleDestructive handler:^(UIAlertAction *action) {
+            if (!APCommitRestore()) {
+                APCancelRestore();
+                [self showMessage:@"Cannot Restore" message:@"Failed to write a temporary file."];
+                return;
+            }
+            [[UIApplication sharedApplication] closeAppAnimatedExit];
+        }]];
+        [alert addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:^(UIAlertAction *action) {
+            APCancelRestore();
+        }]];
+        [self presentViewController:alert animated:YES completion:nil];
+    }];
 }
 
 - (void)openTwitter {

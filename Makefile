@@ -20,8 +20,8 @@ include $(THEOS)/makefiles/common.mk
 
 TWEAK_NAME = ApolloPatcher
 
-$(TWEAK_NAME)_FILES = Tweak.xm SettingsController.m fishhook.c
-$(TWEAK_NAME)_FRAMEWORKS = UIKit SafariServices
+$(TWEAK_NAME)_FILES = Tweak.xm SettingsController.m fishhook.c Backup.m
+$(TWEAK_NAME)_FRAMEWORKS = UIKit SafariServices Security
 $(TWEAK_NAME)_PRIVATE_FRAMEWORKS = Preferences
 $(TWEAK_NAME)_CFLAGS = -fobjc-arc -Wno-deprecated-declarations
 

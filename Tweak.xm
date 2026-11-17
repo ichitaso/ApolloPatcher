@@ -1,5 +1,6 @@
 #import "header.h"
 #import "fishhook.h"
+#import "Backup.h"
 
 static NSString *randomUserAgent = [NSString stringWithFormat:@"iOS: com.%@.%@ v%d.%d.%d (by /u/%@)", RANDSTRING, RANDSTRING, RANDINT, RANDINT, RANDINT, RANDSTRING];
 // Memo iPad6 17.5.1
@@ -84,7 +85,7 @@ static NSString *imageID;
         [url.absoluteString containsString:@"https://apollogur.download/api/refund_screen_config"]) {
         return nil;
     } else if ([url.absoluteString containsString:@"https://apollogur.download/api/image/"]) {
-        NSString *modifiedURLString = [NSString stringWithFormat:@"https://api.imgur.com/3/image/%@.json?client_id=%@", imageID, kClientID];
+        NSString *modifiedURLString = [NSString stringWithFormat:@"https://api.imgur.com/3/image/%@?client_id=%@", imageID, kClientID];
         NSURL *modifiedURL = [NSURL URLWithString:modifiedURLString];
         // Access the modified URL to get the actual data
         NSURLSessionDataTask *dataTask = [self dataTaskWithURL:modifiedURL completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
@@ -100,7 +101,7 @@ static NSString *imageID;
         [dataTask resume];
         return dataTask;
     } else if ([url.absoluteString containsString:@"https://apollogur.download/api/album/"]) {
-        NSString *modifiedURLString = [NSString stringWithFormat:@"https://api.imgur.com/3/album/%@.json?client_id=%@", imageID, kClientID];
+        NSString *modifiedURLString = [NSString stringWithFormat:@"https://api.imgur.com/3/album/%@?client_id=%@", imageID, kClientID];
         NSURL *modifiedURL = [NSURL URLWithString:modifiedURLString];
         return %orig(modifiedURL, completionHandler);
     }
@@ -591,6 +592,23 @@ static OSStatus SecItemUpdate_replacement(CFDictionaryRef query, CFDictionaryRef
 
 %ctor {
     @autoreleasepool {
+        // Before the app opens its data
+        NSString *restoreResult = APApplyPendingRestore();
+        if (restoreResult) {
+            __block id observer = [[NSNotificationCenter defaultCenter] addObserverForName:UIApplicationDidBecomeActiveNotification object:nil queue:[NSOperationQueue mainQueue] usingBlock:^(NSNotification *note) {
+                [[NSNotificationCenter defaultCenter] removeObserver:observer];
+                dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+                    UIViewController *vc = [UIApplication sharedApplication].keyWindow.rootViewController;
+                    while (vc.presentedViewController) vc = vc.presentedViewController;
+                    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"ApolloPatcher"
+                                                                                   message:restoreResult
+                                                                            preferredStyle:UIAlertControllerStyleAlert];
+                    [alert addAction:[UIAlertAction actionWithTitle:@"Close" style:UIAlertActionStyleDefault handler:nil]];
+                    [vc presentViewController:alert animated:YES completion:nil];
+                });
+            }];
+        }
+
         kCustomID = (id)[[[NSUserDefaults standardUserDefaults] objectForKey:@"Custom_ID"] ?: nil copy];
         kClientID = (id)[[[NSUserDefaults standardUserDefaults] objectForKey:@"IMGUR_ID"] ?: @"8b15a972041abb1" copy];
         // Suppress wallpaper prompt
